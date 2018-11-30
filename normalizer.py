@@ -24,7 +24,7 @@ class Normalizer:
         arabic_w = u'\u0621-\u063A\u0641-\u064A'  # ARABIC ALPHABET
         arabic_w += u'\u067E\u0686\u0698\u06A9\u06AF\u06CC\u0654'  # EXTENDED ARABIC LETTERS
 
-        # preserve order where mapping across languages may be applicable, i.e. numbers or punctuation marks
+        # preserve order where mapping across languages may be applicable, e.g. numbers or punctuation marks
         ranges = \
             {'punctuation': {'fa': r'؟!٪)(،؛.', 'en': r'?!%(),;.'},
              'numerals':    {'fa': '۰۱۲۳۴۵۶۷۸۹', 'en': '0123456789', 'ar': '٠١٢٣٤٥٦٧٨٩'},
@@ -32,6 +32,24 @@ class Normalizer:
              'diacritics':  {'fa': u'\u0610-\u061A\u064B-\u065F'}}
 
         return ranges[boundary] if boundary else ranges
+
+    @staticmethod
+    def get_affixes(affix_type: str = 'all', lang: str = 'fa') -> dict:
+        affixes = \
+            {'post_INFL': {'fa': ['های*', 'ها ای', 'ای+', 'ی+', 'مان', 'تان', 'شان',
+                                  'هایم', 'هایت', 'هایش', 'هایمان', 'هایتان', 'هایشان', 'ام', 'ات', 'اش']},
+             'post_LEX': {'fa': ['ای', 'اید', 'ام', 'ایم', 'اند', 'جاتی?', 'آوری?', 'نشینی?', 'کننده', 'کنندگی',
+                                 'پاشی?', 'پوشی?', 'پوشانی?', 'شناسی?', 'شناسانی?', 'پذیری?', 'پذیرانی?',
+                                 'شکنی?', 'شکنانی?', 'فشانی?', 'سازی?', 'آلودی?', 'آمیزی?', 'زدای*',
+                                 'انگیزی?', 'خیزی?', 'سوزی?', 'پراکنی', 'خوری', 'افکنی?', 'دانی?',
+                                 'پروری?', 'پریشی?', 'نویسی?', 'وار', 'واره', 'کارانی?', 'پژوهی?', 'سنجی?',
+                                 'کنان', 'پردازی?', 'رسانی?', 'یابی?', 'پیما', 'گری?', 'گیری?', 'مندی?', 'ساعته',
+                                 'ور', 'اندازی?']},
+             'pre_INFL': {'fa': ['ن?می']},
+             'pre_LEX': {'fa': ['نا', 'بی', 'فرا', 'سوء', 'ابر']}}
+
+        out = affixes if affix_type == 'all' else affixes[affix_type]
+        return out[lang] if lang in out else {}
 
     def get_punctuation(self) -> str:
         return self.punctuation
@@ -48,7 +66,6 @@ class Normalizer:
     def localize_punc(self, text: str, sep: str = ' ') -> str:
         out_charset = self.get_punctuation()
         punct_marks = self.get_unicode_range('punctuation')
-
         # a list of punctuation marks not used by the current locale
         in_charsets = [punct_marks[lang] for lang in punct_marks if lang != self.locale]
 
@@ -75,8 +92,10 @@ class Normalizer:
 
         return text
 
+
+class Persianizer(Normalizer):
+
     def filter_zwnj(self, text: str, replace: str = '') -> str:
-        # TODO: Move to a language specific instance of the Normalizer Object
         return text.replace('\u200c', replace)
 
     def filter_diacritics(self, text: str) -> str:
@@ -104,17 +123,22 @@ class Normalizer:
         return text
 
     def filter_tatvil(text: str) -> str:
-        # TODO: Move to a language specific instance of the Normalizer Object
         tatweel = '\u0640'
         return text.replace(tatweel, '')
 
     def filter_yah_ezafe(text: str) -> str:
-        # TODO: Move to a language specific instance of the Normalizer Object
         pass
 
-    def filter_final_hamza(text: str) -> str:
-        # TODO: Move to a language specific instance of the Normalizer Object
-        pass
+    def normalize_hamza(text: str) -> str:
+        text = re.sub(r'(?<=['+'آاوی'+'])'+'ء'+'(?=[\s\r\n])', '', text)
+        text = re.sub(r'(?<![\r\n\s\u200C])' + 'آ', 'ا', text)
+
+        mapping = str.maketrans('أئؤ', 'ایو')
+        return text.translate(mapping)
+
+    def normalize_arabic_letters(text: str) -> str:
+        mapping = str.maketrans('يك', 'یک')
+        return text.translate(mapping)
 
     def filter_nonsense(text: str, preserve: str = '') -> str:
         pass
