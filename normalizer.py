@@ -26,30 +26,12 @@ class Normalizer:
 
         # preserve order where mapping across languages may be applicable, e.g. numbers or punctuation marks
         ranges = \
-            {'punctuation': {'fa': r'؟!٪)(،؛.', 'en': r'?!%(),;.'},
+            {'punctuation': {'fa': r'"\/\؟!٪()،؛:.', 'en': r'"\/\?!%(),;:.'},
              'numerals':    {'fa': '۰۱۲۳۴۵۶۷۸۹', 'en': '0123456789', 'ar': '٠١٢٣٤٥٦٧٨٩'},
              'alphabet':    {'fa': arabic_w, 'en': r'[a-zA-Z]'},
              'diacritics':  {'fa': u'\u0610-\u061A\u064B-\u065F'}}
 
         return ranges[boundary] if boundary else ranges
-
-    @staticmethod
-    def get_affixes(affix_type: str = 'all', lang: str = 'fa') -> dict:
-        affixes = \
-            {'post_INFL': {'fa': ['های*', 'ها ای', 'ای+', 'ی+', 'مان', 'تان', 'شان',
-                                  'هایم', 'هایت', 'هایش', 'هایمان', 'هایتان', 'هایشان', 'ام', 'ات', 'اش']},
-             'post_LEX': {'fa': ['ای', 'اید', 'ام', 'ایم', 'اند', 'جاتی?', 'آوری?', 'نشینی?', 'کننده', 'کنندگی',
-                                 'پاشی?', 'پوشی?', 'پوشانی?', 'شناسی?', 'شناسانی?', 'پذیری?', 'پذیرانی?',
-                                 'شکنی?', 'شکنانی?', 'فشانی?', 'سازی?', 'آلودی?', 'آمیزی?', 'زدای*',
-                                 'انگیزی?', 'خیزی?', 'سوزی?', 'پراکنی', 'خوری', 'افکنی?', 'دانی?',
-                                 'پروری?', 'پریشی?', 'نویسی?', 'وار', 'واره', 'کارانی?', 'پژوهی?', 'سنجی?',
-                                 'کنان', 'پردازی?', 'رسانی?', 'یابی?', 'پیما', 'گری?', 'گیری?', 'مندی?', 'ساعته',
-                                 'ور', 'اندازی?']},
-             'pre_INFL': {'fa': ['ن?می']},
-             'pre_LEX': {'fa': ['نا', 'بی', 'فرا', 'سوء', 'ابر']}}
-
-        out = affixes if affix_type == 'all' else affixes[affix_type]
-        return out[lang] if lang in out else {}
 
     def get_punctuation(self) -> str:
         return self.punctuation
@@ -63,6 +45,15 @@ class Normalizer:
     def is_supported(self, lang: str) -> bool:
         return True if lang in self.supported_languages else False
 
+    def trim_whitespace(self, text: str) -> str:
+        return re.sub('(\s){2,}', '\g<1>', text)
+
+    def filter_xml_tags(self, text: str) -> str:
+        return re.sub(r'<.*?>', '', text)
+
+    def filter_url(self, text: str, rep: str = ''):
+        return re.sub(r'https?:\/\/\S+\/?', rep, text)
+
     def localize_punc(self, text: str, sep: str = ' ') -> str:
         out_charset = self.get_punctuation()
         punct_marks = self.get_unicode_range('punctuation')
@@ -74,8 +65,8 @@ class Normalizer:
             text = text.translate(tbl)
 
         if sep:
-            text = re.sub('(?<!\s)([' + out_charset + ']{1,3})', sep + '\g<0>', text)
-            text = re.sub('([' + out_charset + ']){1,3}(?!\s)', '\g<0>' + sep, text)
+            text = re.sub('(?<!'+ sep +')([' + out_charset + ']){1,3}', sep + '\g<0>', text)
+            text = re.sub('([' + out_charset + ']){1,3}(?!'+ sep +')', '\g<0>' + sep, text)
 
         return text
 
@@ -95,6 +86,58 @@ class Normalizer:
 
 class Persianizer(Normalizer):
 
+    def localize_punc(self, text: str, sep: str = ' '):
+        tbl = str.maketrans('«»', '""')
+        text = text.translate(tbl)
+        return super(Persianizer, self).localize_punc(text)
+
+    @staticmethod
+    def get_affixes(affix_type: str = 'all') -> dict:
+        affixes = \
+            {'suffix_INFL': ['های*', 'ها ای', 'ای+', 'ی+', 'مان', 'تان', 'شان', 'تری?', 'ترین',
+                             'هایم', 'هایت', 'هایش', 'هایمان', 'هایتان', 'هایشان', 'ام', 'ات', 'اش'],
+             'suffix_LEX': ['ای', 'اید', 'ام', 'ایم', 'اند', 'جاتی?', 'آوری?', 'نشینی?', 'کننده', 'کنندگی', 'کنندگان',
+                            'پاشی?', 'پوشی?', 'پوشانی?', 'شناسی?', 'شناسانی?', 'پذیری?', 'پذیرانی?', 'ناپذیری?',
+                            'شکنی?', 'شکنانی?', 'فشانی?', 'سازی?', 'آلودی?', 'آمیزی?', 'زدای*', 'خوردگی', 'زدگی',
+                            'انگیزی?', 'خیزی?', 'سوزی?', 'پراکنی', 'خوری', 'افکنی?', 'دانی?', 'گرفتگی', 'المللی?',
+                            'پروری?', 'پریشی?', 'نویسی?', 'وار', 'واره', 'کارانی?', 'پژوهی?', 'سنجی?', 'بانی?',
+                            'کنان', 'پردازی?', 'رسانی?', 'یابی?', 'پیما', 'گری?', 'گیری?', 'مندی?', 'ساعته',
+                            'ور', 'اندازی?', 'مندی?', 'مندانی?'],
+             'prefix_INFL': ['ن?می'],
+             'prefix_LEX': ['نا', 'بی', 'فرا', 'سوء', 'غیر'],
+             'circum_LEX': ['هم\s\S+?ی']}
+
+        if affix_type != 'all':
+            return {key: value for key, value in affixes.items() if key.startswith(affix_type)}
+        else:
+            return affixes
+
+    def normalize_affixation(self, text: str, affix_type: str = 'all', p_sep: str = '', s_sep: str = '') -> str:
+        affix_type = [affix_type]
+        types = affix_type if affix_type[0] != 'all' else ['prefix', 'suffix']
+        affixes = {}
+        for t in types:
+            affixes.update(self.get_affixes(t))
+
+        for affix_type, affix_list in affixes.items():
+            if affix_type.startswith('prefix'):
+                for prefix in affix_list:
+                    pattern = r'(?:^|(?<=\W))({})\W+'
+                    pattern = pattern.format(prefix)
+                    text = re.sub(pattern, '\g<1>' + p_sep, text)
+            elif affix_type.startswith('suffix'):
+                for suffix in affix_list:
+                    pattern = r'\W+({})(?=\W)'
+                    pattern = pattern.format(suffix)
+                    text = re.sub(pattern, s_sep + '\g<1>', text)
+            elif affix_type.startswith('circum'):
+                for circum in affix_list:
+                    old_words = re.findall(circum, text)
+                    for word in old_words:
+                        text = text.replace(word, re.sub(r'\s', '', word))
+
+        return text
+
     def filter_zwnj(self, text: str, replace: str = '') -> str:
         return text.replace('\u200c', replace)
 
@@ -102,7 +145,7 @@ class Persianizer(Normalizer):
         diacritics = self.get_unicode_range('diacritics')
         return re.sub('[{}]'.format(diacritics[self.locale]), '', text)
 
-    def filter_foreign(text: str) -> str:
+    def filter_foreign(self, text: str) -> str:
         # TODO: use class internal methods and attributes
         arabic = '\s'
         arabic += '\u060C\u061B\u061F\u06D4'  # ARABIC COMMA SEMICOLON QUESTION FULLSTOP
@@ -116,29 +159,25 @@ class Persianizer(Normalizer):
         return re.sub(non_arabic, '', text)
 
     def trim_whitespace(self, text: str) -> str:
-        text = re.sub(' {2,}', ' ', text)
-        text = re.sub('\n{2,}', '\n', text)
-        text = re.sub('\u200C{2,}', '\u200C', text)
+        return super(Persianizer, self).trim_whitespace(text)
 
-        return text
-
-    def filter_tatvil(text: str) -> str:
+    def filter_tatvil(self, text: str) -> str:
         tatweel = '\u0640'
         return text.replace(tatweel, '')
 
-    def filter_yah_ezafe(text: str) -> str:
+    def filter_yah_ezafe(self, text: str) -> str:
         pass
 
-    def normalize_hamza(text: str) -> str:
-        text = re.sub(r'(?<=['+'آاوی'+'])'+'ء'+'(?=[\s\r\n])', '', text)
-        text = re.sub(r'(?<![\r\n\s\u200C])' + 'آ', 'ا', text)
+    def normalize_hamza(self, text: str) -> str:
+        text = re.sub(r'(?<=['+'آاوی'+'])'+'ء'+'(?=[\s])', '', text)
+        text = re.sub(r'(?<![\s\u200C])' + 'آ', 'ا', text)
 
-        mapping = str.maketrans('أئؤ', 'ایو')
+        mapping = str.maketrans('إأئؤ', 'اایو')
         return text.translate(mapping)
 
-    def normalize_arabic_letters(text: str) -> str:
-        mapping = str.maketrans('يك', 'یک')
+    def normalize_arabic_letters(self, text: str) -> str:
+        mapping = str.maketrans('يكة', 'یکه')
         return text.translate(mapping)
 
-    def filter_nonsense(text: str, preserve: str = '') -> str:
+    def filter_nonsense(self, text: str, preserve: str = '') -> str:
         pass
